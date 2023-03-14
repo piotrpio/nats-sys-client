@@ -1,2 +1,1 @@
-# nats-sys-client
-System API client for NATS
+# System API client for NATS
