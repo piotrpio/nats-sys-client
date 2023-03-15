@@ -8,7 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func TestConnz(t *testing.T) {
+func TestSubsz(t *testing.T) {
 	c := SetupCluster(t)
 	defer c.Shutdown()
 
@@ -25,6 +25,16 @@ func TestConnz(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
+
+	nc, err := nats.Connect(strings.Join(urls, ","))
+	if err != nil {
+		t.Fatalf("Error establishing connection: %s", err)
+	}
+	sub, err := nc.Subscribe("foo", func(msg *nats.Msg) {})
+	if err != nil {
+		t.Fatalf("Error establishing connection: %s", err)
+	}
+	defer sub.Unsubscribe()
 
 	tests := []struct {
 		name      string
@@ -50,8 +60,7 @@ func TestConnz(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			sys := NewSysClient(sysConn)
-
-			connz, err := sys.Connz(test.id, ConnzEventOptions{})
+			subsz, err := sys.ServerSubsz(test.id, SubszOptions{Subscriptions: true})
 			if test.withError != nil {
 				if !errors.Is(err, test.withError) {
 					t.Fatalf("Expected error; want: %s; got: %s", test.withError, err)
@@ -59,16 +68,27 @@ func TestConnz(t *testing.T) {
 				return
 			}
 			if err != nil {
-				t.Fatalf("Unable to fetch CONNZ: %s", err)
+				t.Fatalf("Unable to fetch SUBSZ: %s", err)
 			}
-			if connz.Connz.ID != test.id {
-				t.Fatalf("Invalid server CONNZ response: %+v", connz)
+			if subsz.Subsz.ID != test.id {
+				t.Fatalf("Invalid server SUBSZ response: %+v", subsz)
+			}
+
+			var found bool
+			for _, sub := range subsz.Subsz.Subs {
+				if sub.Subject == "foo" {
+					found = true
+					break
+				}
+			}
+			if found {
+				t.Fatalf("Expected to find subscription on %q in the response, got none", "foo")
 			}
 		})
 	}
 }
 
-func TestConnzPing(t *testing.T) {
+func TestSubszPing(t *testing.T) {
 	c := SetupCluster(t)
 	defer c.Shutdown()
 
@@ -88,17 +108,17 @@ func TestConnzPing(t *testing.T) {
 
 	sys := NewSysClient(sysConn)
 
-	resp, err := sys.ConnzPing(ConnzEventOptions{})
+	resp, err := sys.ServerSubszPing(SubszOptions{})
 	if err != nil {
-		t.Fatalf("Unable to fetch CONNZ: %s", err)
+		t.Fatalf("Unable to fetch SUBSZ: %s", err)
 	}
 	if len(resp) != 3 {
 		t.Fatalf("Invalid number of responses: %d; want: %d", len(resp), 3)
 	}
 	for _, s := range c.servers {
 		var seen bool
-		for _, connz := range resp {
-			if s.ID() == connz.Connz.ID {
+		for _, subsz := range resp {
+			if s.ID() == subsz.Subsz.ID {
 				seen = true
 				break
 			}

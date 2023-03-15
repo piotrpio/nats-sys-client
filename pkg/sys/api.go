@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 const (
 	srvVarzSubj  = "$SYS.REQ.SERVER.%s.VARZ"
 	srvConnzSubj = "$SYS.REQ.SERVER.%s.CONNZ"
+	srvSubszSubj = "$SYS.REQ.SERVER.%s.SUBSZ"
+)
+
+var (
+	ErrValidation      = errors.New("validation error")
+	ErrInvalidServerID = errors.New("sever with given ID does not exist")
 )
 
 // System can be used to request monitoring data from the server
@@ -47,6 +54,9 @@ type RequestManyOpt func(*requestManyOpts) error
 
 func WithRequestManyMaxWait(maxWait time.Duration) RequestManyOpt {
 	return func(opts *requestManyOpts) error {
+		if maxWait <= 0 {
+			return fmt.Errorf("%w: max wait has to be greater than 0", ErrValidation)
+		}
 		opts.maxWait = maxWait
 		return nil
 	}
@@ -54,6 +64,9 @@ func WithRequestManyMaxWait(maxWait time.Duration) RequestManyOpt {
 
 func WithRequestManyMaxInterval(interval time.Duration) RequestManyOpt {
 	return func(opts *requestManyOpts) error {
+		if interval <= 0 {
+			return fmt.Errorf("%w: max interval has to be greater than 0", ErrValidation)
+		}
 		opts.maxInterval = interval
 		return nil
 	}
@@ -61,12 +74,19 @@ func WithRequestManyMaxInterval(interval time.Duration) RequestManyOpt {
 
 func WithRequestManyCount(count int) RequestManyOpt {
 	return func(opts *requestManyOpts) error {
+		if count <= 0 {
+			return fmt.Errorf("%w: expected request count has to be greater than 0", ErrValidation)
+		}
 		opts.count = count
 		return nil
 	}
 }
 
 func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt) ([]*nats.Msg, error) {
+	if subject == "" {
+
+	}
+
 	conn := s.nc
 	reqOpts := &requestManyOpts{
 		maxWait:     DefaultRequestTimeout,
@@ -99,7 +119,7 @@ func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt
 		select {
 		case msg := <-msgsChan:
 			if msg.Header.Get("Status") == "503" {
-				return nil, fmt.Errorf("server request on subject %q failed: %s", subject, err)
+				return nil, fmt.Errorf("server request on subject %q failed: %w", subject, err)
 			}
 			res = append(res, msg)
 			if reqOpts.count != -1 && len(res) == reqOpts.count {

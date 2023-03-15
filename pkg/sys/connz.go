@@ -2,10 +2,12 @@ package sys
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/nats-io/jwt"
+	"github.com/nats-io/nats.go"
 )
 
 type (
@@ -156,8 +158,11 @@ const (
 	ConnAll
 )
 
-// Connz returns general server information
+// Connz returns server connection details
 func (s *System) Connz(id string, opts ConnzEventOptions) (*ConnzResp, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w: server id cannot be empty", ErrValidation)
+	}
 	conn := s.nc
 	subj := fmt.Sprintf(srvConnzSubj, id)
 	payload, err := json.Marshal(opts)
@@ -166,6 +171,9 @@ func (s *System) Connz(id string, opts ConnzEventOptions) (*ConnzResp, error) {
 	}
 	resp, err := conn.Request(subj, payload, DefaultRequestTimeout)
 	if err != nil {
+		if errors.Is(err, nats.ErrNoResponders) {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidServerID, id)
+		}
 		return nil, err
 	}
 
