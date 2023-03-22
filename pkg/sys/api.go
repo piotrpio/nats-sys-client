@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	srvVarzSubj  = "$SYS.REQ.SERVER.%s.VARZ"
-	srvConnzSubj = "$SYS.REQ.SERVER.%s.CONNZ"
-	srvSubszSubj = "$SYS.REQ.SERVER.%s.SUBSZ"
+	srvVarzSubj    = "$SYS.REQ.SERVER.%s.VARZ"
+	srvConnzSubj   = "$SYS.REQ.SERVER.%s.CONNZ"
+	srvSubszSubj   = "$SYS.REQ.SERVER.%s.SUBSZ"
+	srvHealthzSubj = "$SYS.REQ.SERVER.%s.HEALTHZ"
 )
 
 var (
@@ -131,4 +132,8 @@ func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt
 			return res, nil
 		}
 	}
+}
+
+func jsonString(s string) string {
+	return "\"" + s + "\""
 }
