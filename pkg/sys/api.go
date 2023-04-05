@@ -13,6 +13,7 @@ const (
 	srvConnzSubj   = "$SYS.REQ.SERVER.%s.CONNZ"
 	srvSubszSubj   = "$SYS.REQ.SERVER.%s.SUBSZ"
 	srvHealthzSubj = "$SYS.REQ.SERVER.%s.HEALTHZ"
+	srvJszSubj     = "$SYS.REQ.SERVER.%s.JSZ"
 )
 
 var (
