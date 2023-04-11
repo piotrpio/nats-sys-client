@@ -86,13 +86,13 @@ func WithRequestManyCount(count int) RequestManyOpt {
 
 func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt) ([]*nats.Msg, error) {
 	if subject == "" {
-
+		return nil, fmt.Errorf("%w: expected subject 0", ErrValidation)
 	}
 
 	conn := s.nc
 	reqOpts := &requestManyOpts{
 		maxWait:     DefaultRequestTimeout,
-		maxInterval: 300 * time.Millisecond,
+		maxInterval: 1 * time.Second,
 		count:       -1,
 	}
 
