@@ -121,7 +121,7 @@ func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt
 		select {
 		case msg := <-msgsChan:
 			if msg.Header.Get("Status") == "503" {
-				return nil, fmt.Errorf("server request on subject %q failed: %w", subject, err)
+				return nil, fmt.Errorf("server request on subject %q failed: unauthorized", subject)
 			}
 			res = append(res, msg)
 			if reqOpts.count != -1 && len(res) == reqOpts.count {
