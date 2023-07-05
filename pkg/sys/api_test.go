@@ -55,11 +55,18 @@ func SetupCluster(t *testing.T) *Cluster {
 		srv := StartJetStreamServer(t, confFile)
 		cluster.servers = append(cluster.servers, srv)
 	}
+	connections := make([]*nats.Conn, 0, len(cluster.servers))
+	defer func() {
+		for _, connection := range connections {
+			connection.Close()
+		}
+	}()
 	for _, s := range cluster.servers {
 		nc, err := nats.Connect(s.ClientURL())
 		if err != nil {
 			t.Fatalf("Unable to connect to server %q: %s", s.Name(), err)
 		}
+		connections = append(connections, nc)
 
 		// wait until JetStream is ready
 		timeout := time.Now().Add(10 * time.Second)
