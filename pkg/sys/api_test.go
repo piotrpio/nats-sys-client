@@ -30,6 +30,7 @@ func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 
 	opts.NoLog = true
 	opts.StoreDir = t.TempDir()
+	opts.Port = -1
 
 	s, err := server.NewServer(opts)
 	if err != nil {
