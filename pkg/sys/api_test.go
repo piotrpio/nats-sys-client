@@ -2,8 +2,6 @@ package sys
 
 import (
 	"errors"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +20,7 @@ type cluster struct {
 	servers []*server.Server
 }
 
-// StartJetStreamServer starts a a NATS server
+// StartJetStreamServer starts a NATS server
 func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 	opts, err := server.ProcessConfigFile(confFile)
 
@@ -31,11 +29,7 @@ func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 	}
 
 	opts.NoLog = true
-	tdir, err := os.MkdirTemp(os.TempDir(), fmt.Sprintf("%s_%s-", opts.ServerName, opts.Cluster.Name))
-	if err != nil {
-		t.Fatalf("Error creating jetstream store directory: %s", err)
-	}
-	opts.StoreDir = tdir
+	opts.StoreDir = t.TempDir()
 
 	s, err := server.NewServer(opts)
 	if err != nil {
