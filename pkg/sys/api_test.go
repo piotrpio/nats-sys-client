@@ -16,7 +16,7 @@ var configFiles = []string{
 	"./testdata/s3.conf",
 }
 
-type cluster struct {
+type Cluster struct {
 	servers []*server.Server
 }
 
@@ -44,9 +44,9 @@ func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 	return s
 }
 
-func SetupCluster(t *testing.T) *cluster {
+func SetupCluster(t *testing.T) *Cluster {
 	t.Helper()
-	cluster := cluster{
+	cluster := Cluster{
 		servers: make([]*server.Server, 0),
 	}
 	for _, confFile := range configFiles {
@@ -79,7 +79,7 @@ func SetupCluster(t *testing.T) *cluster {
 	return &cluster
 }
 
-func (c *cluster) Shutdown() {
+func (c *Cluster) Shutdown() {
 	for _, s := range c.servers {
 		s.Shutdown()
 	}
