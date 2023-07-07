@@ -111,6 +111,9 @@ func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt
 		intervalTimer.Reset(reqOpts.maxInterval)
 		msgsChan <- msg
 	})
+	if err != nil {
+		return nil, err
+	}
 	defer sub.Unsubscribe()
 
 	if err := conn.PublishRequest(subject, inbox, data); err != nil {

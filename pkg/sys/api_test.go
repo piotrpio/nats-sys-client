@@ -2,8 +2,6 @@ package sys
 
 import (
 	"errors"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,11 +16,11 @@ var configFiles = []string{
 	"./testdata/s3.conf",
 }
 
-type cluster struct {
+type Cluster struct {
 	servers []*server.Server
 }
 
-// StartJetStreamServer starts a a NATS server
+// StartJetStreamServer starts a NATS server
 func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 	opts, err := server.ProcessConfigFile(confFile)
 
@@ -31,11 +29,8 @@ func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 	}
 
 	opts.NoLog = true
-	tdir, err := os.MkdirTemp(os.TempDir(), fmt.Sprintf("%s_%s-", opts.ServerName, opts.Cluster.Name))
-	if err != nil {
-		t.Fatalf("Error creating jetstream store directory: %s", err)
-	}
-	opts.StoreDir = tdir
+	opts.StoreDir = t.TempDir()
+	opts.Port = -1
 
 	s, err := server.NewServer(opts)
 	if err != nil {
@@ -50,20 +45,27 @@ func StartJetStreamServer(t *testing.T, confFile string) *server.Server {
 	return s
 }
 
-func SetupCluster(t *testing.T) *cluster {
+func SetupCluster(t *testing.T) *Cluster {
 	t.Helper()
-	cluster := cluster{
+	cluster := Cluster{
 		servers: make([]*server.Server, 0),
 	}
 	for _, confFile := range configFiles {
 		srv := StartJetStreamServer(t, confFile)
 		cluster.servers = append(cluster.servers, srv)
 	}
+	connections := make([]*nats.Conn, 0, len(cluster.servers))
+	defer func() {
+		for _, connection := range connections {
+			connection.Close()
+		}
+	}()
 	for _, s := range cluster.servers {
 		nc, err := nats.Connect(s.ClientURL())
 		if err != nil {
 			t.Fatalf("Unable to connect to server %q: %s", s.Name(), err)
 		}
+		connections = append(connections, nc)
 
 		// wait until JetStream is ready
 		timeout := time.Now().Add(10 * time.Second)
@@ -85,7 +87,7 @@ func SetupCluster(t *testing.T) *cluster {
 	return &cluster
 }
 
-func (c *cluster) Shutdown() {
+func (c *Cluster) Shutdown() {
 	for _, s := range c.servers {
 		s.Shutdown()
 	}
