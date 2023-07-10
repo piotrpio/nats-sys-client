@@ -57,7 +57,10 @@ func TestJsz(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			sys := NewSysClient(sysConn)
+			sys, err := NewSysClient(sysConn)
+			if err != nil {
+				t.Fatalf("Error creating system client: %s", err)
+			}
 
 			jsz, err := sys.Jsz(test.id, test.options)
 			if test.withError != nil {
@@ -117,7 +120,10 @@ func TestJszPing(t *testing.T) {
 		t.Fatalf("Error creating stream: %v", err)
 	}
 
-	sys := NewSysClient(sysConn)
+	sys, err := NewSysClient(sysConn)
+	if err != nil {
+		t.Fatalf("Error creating system client: %s", err)
+	}
 
 	resp, err := sys.JszPing(JszEventOptions{JszOptions: JszOptions{Streams: true}})
 	if err != nil {

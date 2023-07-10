@@ -86,7 +86,7 @@ func (s *System) Healthz(id string, opts HealthzOptions) (*HealthzResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := conn.Request(subj, payload, DefaultRequestTimeout)
+	resp, err := conn.Request(subj, payload, s.opts.timeout)
 	if err != nil {
 		if errors.Is(err, nats.ErrNoResponders) {
 			return nil, fmt.Errorf("%w: %s", ErrInvalidServerID, id)

@@ -120,9 +120,9 @@ func TestRequestMany(t *testing.T) {
 			expectedResponses: 2,
 		},
 		{
-			name:              "large interval, small timeout",
+			name:              "only max wait",
 			subject:           "$SYS.REQ.SERVER.PING",
-			opts:              []RequestManyOpt{WithRequestManyMaxInterval(10 * time.Second), WithRequestManyMaxWait(200 * time.Millisecond)},
+			opts:              []RequestManyOpt{WithRequestManyMaxWait(100 * time.Millisecond)},
 			expectedResponses: 3,
 		},
 		{
@@ -152,7 +152,7 @@ func TestRequestMany(t *testing.T) {
 		{
 			name:      "invalid subject",
 			subject:   "",
-			withError: nats.ErrBadSubject,
+			withError: ErrValidation,
 		},
 	}
 
@@ -167,7 +167,10 @@ func TestRequestMany(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error establishing connection: %s", err)
 			}
-			sys := NewSysClient(sysConn)
+			sys, err := NewSysClient(sysConn)
+			if err != nil {
+				t.Fatalf("Error creating system client: %s", err)
+			}
 
 			start := time.Now()
 			resp, err := sys.RequestMany(test.subject, nil, test.opts...)

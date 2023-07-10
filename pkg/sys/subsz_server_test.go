@@ -27,7 +27,7 @@ func TestSubsz(t *testing.T) {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
 
-	nc, err := nats.Connect(strings.Join(urls, ","))
+	nc, err := nats.Connect(c.servers[1].ClientURL())
 	if err != nil {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
@@ -35,7 +35,7 @@ func TestSubsz(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	defer sub.Unsubscribe()
 
 	tests := []struct {
@@ -61,7 +61,10 @@ func TestSubsz(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			sys := NewSysClient(sysConn)
+			sys, err := NewSysClient(sysConn)
+			if err != nil {
+				t.Fatalf("Error creating system client: %s", err)
+			}
 			subsz, err := sys.ServerSubsz(test.id, SubszOptions{Subscriptions: true})
 			if test.withError != nil {
 				if !errors.Is(err, test.withError) {
@@ -83,7 +86,7 @@ func TestSubsz(t *testing.T) {
 					break
 				}
 			}
-			if found {
+			if !found {
 				t.Fatalf("Expected to find subscription on %q in the response, got none", "foo")
 			}
 		})
@@ -108,9 +111,22 @@ func TestSubszPing(t *testing.T) {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
 
-	sys := NewSysClient(sysConn)
+	sys, err := NewSysClient(sysConn)
+	if err != nil {
+		t.Fatalf("Error creating system client: %s", err)
+	}
+	nc, err := nats.Connect(c.servers[1].ClientURL())
+	if err != nil {
+		t.Fatalf("Error establishing connection: %s", err)
+	}
+	sub, err := nc.Subscribe("foo", func(msg *nats.Msg) {})
+	if err != nil {
+		t.Fatalf("Error creating subscription: %s", err)
+	}
+	time.Sleep(3 * time.Second)
+	defer sub.Unsubscribe()
 
-	resp, err := sys.ServerSubszPing(SubszOptions{})
+	resp, err := sys.ServerSubszPing(SubszOptions{Subscriptions: true})
 	if err != nil {
 		t.Fatalf("Unable to fetch SUBSZ: %s", err)
 	}

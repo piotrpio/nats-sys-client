@@ -8,10 +8,6 @@ import (
 	"github.com/nats-io/jwt"
 )
 
-const (
-	DefaultRequestTimeout = 10 * time.Second
-)
-
 type (
 	VarzResp struct {
 		Server ServerInfo `json:"server"`
@@ -249,7 +245,7 @@ func (s *System) Varz(id string, opts VarzEventOptions) (*VarzResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := conn.Request(subj, payload, DefaultRequestTimeout)
+	resp, err := conn.Request(subj, payload, s.opts.timeout)
 	if err != nil {
 		return nil, err
 	}

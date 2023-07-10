@@ -27,7 +27,10 @@ func TestVarz(t *testing.T) {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
 
-	sys := NewSysClient(sysConn)
+	sys, err := NewSysClient(sysConn)
+	if err != nil {
+		t.Fatalf("Error creating system client: %s", err)
+	}
 
 	varz, err := sys.Varz(id, VarzEventOptions{})
 	if err != nil {
@@ -56,7 +59,10 @@ func TestVarzPing(t *testing.T) {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
 
-	sys := NewSysClient(sysConn)
+	sys, err := NewSysClient(sysConn)
+	if err != nil {
+		t.Fatalf("Error creating system client: %s", err)
+	}
 
 	resp, err := sys.VarzPing(VarzEventOptions{})
 	if err != nil {
