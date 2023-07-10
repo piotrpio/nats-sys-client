@@ -15,6 +15,7 @@ const (
 
 const (
 	srvVarzSubj    = "$SYS.REQ.SERVER.%s.VARZ"
+	srvStatszSubj  = "$SYS.REQ.SERVER.%s.STATSZ"
 	srvConnzSubj   = "$SYS.REQ.SERVER.%s.CONNZ"
 	srvSubszSubj   = "$SYS.REQ.SERVER.%s.SUBSZ"
 	srvHealthzSubj = "$SYS.REQ.SERVER.%s.HEALTHZ"
