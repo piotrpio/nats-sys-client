@@ -4,12 +4,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
-func TestSubsz(t *testing.T) {
+func TestServerStatsz(t *testing.T) {
 	c := SetupCluster(t)
 	defer c.Shutdown()
 
@@ -27,16 +26,10 @@ func TestSubsz(t *testing.T) {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
 
-	nc, err := nats.Connect(c.servers[1].ClientURL())
+	sys, err := NewSysClient(sysConn)
 	if err != nil {
-		t.Fatalf("Error establishing connection: %s", err)
+		t.Fatalf("Error creating system client: %s", err)
 	}
-	sub, err := nc.Subscribe("foo", func(msg *nats.Msg) {})
-	if err != nil {
-		t.Fatalf("Error establishing connection: %s", err)
-	}
-	time.Sleep(100 * time.Millisecond)
-	defer sub.Unsubscribe()
 
 	tests := []struct {
 		name      string
@@ -61,39 +54,34 @@ func TestSubsz(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			sys, err := NewSysClient(sysConn)
-			if err != nil {
-				t.Fatalf("Error creating system client: %s", err)
-			}
-			subsz, err := sys.ServerSubsz(test.id, SubszOptions{Subscriptions: true})
+			statsz, err := sys.ServerStatsz(test.id, StatszEventOptions{})
 			if test.withError != nil {
 				if !errors.Is(err, test.withError) {
 					t.Fatalf("Expected error; want: %s; got: %s", test.withError, err)
 				}
 				return
 			}
-			if err != nil {
-				t.Fatalf("Unable to fetch SUBSZ: %s", err)
-			}
-			if subsz.Subsz.ID != test.id {
-				t.Fatalf("Invalid server SUBSZ response: %+v", subsz)
+			if test.withError != nil {
+				if !errors.Is(err, test.withError) {
+					t.Fatalf("Expected error; want: %s; got: %s", test.withError, err)
+				}
+				return
 			}
 
-			var found bool
-			for _, sub := range subsz.Subsz.Subs {
-				if sub.Subject == "foo" {
-					found = true
-					break
-				}
+			if err != nil {
+				t.Fatalf("Unable to fetch HEALTHZ: %s", err)
 			}
-			if !found {
-				t.Fatalf("Expected to find subscription on %q in the response, got none", "foo")
+			if statsz.Server.ID != test.id {
+				t.Fatalf("Invalid server STATSZ response: %+v", statsz)
+			}
+			if statsz.Statsz.ActiveServers != 3 {
+				t.Fatalf("Invalid number of active servers in response; want: %d; got: %d", 3, statsz.Statsz.ActiveServers)
 			}
 		})
 	}
 }
 
-func TestSubszPing(t *testing.T) {
+func TestServerStatszPing(t *testing.T) {
 	c := SetupCluster(t)
 	defer c.Shutdown()
 
@@ -115,28 +103,18 @@ func TestSubszPing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating system client: %s", err)
 	}
-	nc, err := nats.Connect(c.servers[1].ClientURL())
-	if err != nil {
-		t.Fatalf("Error establishing connection: %s", err)
-	}
-	sub, err := nc.Subscribe("foo", func(msg *nats.Msg) {})
-	if err != nil {
-		t.Fatalf("Error creating subscription: %s", err)
-	}
-	time.Sleep(3 * time.Second)
-	defer sub.Unsubscribe()
 
-	resp, err := sys.ServerSubszPing(SubszOptions{Subscriptions: true})
+	resp, err := sys.ServerStatszPing(StatszEventOptions{})
 	if err != nil {
-		t.Fatalf("Unable to fetch SUBSZ: %s", err)
+		t.Fatalf("Unable to fetch ServerStatsz: %s", err)
 	}
 	if len(resp) != 3 {
 		t.Fatalf("Invalid number of responses: %d; want: %d", len(resp), 3)
 	}
 	for _, s := range c.servers {
 		var seen bool
-		for _, subsz := range resp {
-			if s.ID() == subsz.Subsz.ID {
+		for _, statsz := range resp {
+			if s.Name() == statsz.Server.Name {
 				seen = true
 				break
 			}

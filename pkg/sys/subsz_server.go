@@ -68,7 +68,7 @@ func (s *System) ServerSubsz(id string, opts SubszOptions) (*SubszResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := conn.Request(subj, payload, DefaultRequestTimeout)
+	resp, err := conn.Request(subj, payload, s.opts.timeout)
 	if err != nil {
 		if errors.Is(err, nats.ErrNoResponders) {
 			return nil, fmt.Errorf("%w: %s", ErrInvalidServerID, id)

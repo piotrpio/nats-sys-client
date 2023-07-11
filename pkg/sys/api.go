@@ -9,7 +9,13 @@ import (
 )
 
 const (
+	DefaultRequestTimeout  = 10 * time.Second
+	DefaultRequestInterval = 300 * time.Millisecond
+)
+
+const (
 	srvVarzSubj    = "$SYS.REQ.SERVER.%s.VARZ"
+	srvStatszSubj  = "$SYS.REQ.SERVER.%s.STATSZ"
 	srvConnzSubj   = "$SYS.REQ.SERVER.%s.CONNZ"
 	srvSubszSubj   = "$SYS.REQ.SERVER.%s.SUBSZ"
 	srvHealthzSubj = "$SYS.REQ.SERVER.%s.HEALTHZ"
@@ -23,7 +29,50 @@ var (
 
 // System can be used to request monitoring data from the server
 type System struct {
-	nc *nats.Conn
+	nc   *nats.Conn
+	opts *sysClientOpts
+}
+
+type SysClientOpt func(*sysClientOpts) error
+
+type sysClientOpts struct {
+	timeout              time.Duration
+	multiRequestInterval time.Duration
+	serverCount          int
+}
+
+func SysRequestTimeout(timeout time.Duration) SysClientOpt {
+	return func(opts *sysClientOpts) error {
+		if timeout <= 0 {
+			return fmt.Errorf("%w: timeout has to be greater than 0", ErrValidation)
+		}
+		opts.timeout = timeout
+		return nil
+	}
+}
+
+func SysMultiRequestInterval(initialTimeout, interval time.Duration) SysClientOpt {
+	return func(opts *sysClientOpts) error {
+		if interval <= 0 {
+			return fmt.Errorf("%w: interval has to be greater than 0", ErrValidation)
+		}
+		if initialTimeout <= 0 {
+			initialTimeout = interval
+		}
+		opts.timeout = initialTimeout
+		opts.multiRequestInterval = interval
+		return nil
+	}
+}
+
+func ServerCount(count int) SysClientOpt {
+	return func(opts *sysClientOpts) error {
+		if count <= 0 {
+			return fmt.Errorf("%w: server count has to be greater than 0", ErrValidation)
+		}
+		opts.serverCount = count
+		return nil
+	}
 }
 
 // ServerInfo identifies remote servers.
@@ -40,10 +89,21 @@ type ServerInfo struct {
 	Time      time.Time `json:"time"`
 }
 
-func NewSysClient(nc *nats.Conn) System {
-	return System{
-		nc: nc,
+func NewSysClient(nc *nats.Conn, opts ...SysClientOpt) (*System, error) {
+	sysOpts := &sysClientOpts{
+		timeout:              DefaultRequestTimeout,
+		multiRequestInterval: DefaultRequestInterval,
+		serverCount:          -1,
 	}
+	for _, opt := range opts {
+		if err := opt(sysOpts); err != nil {
+			return nil, err
+		}
+	}
+	return &System{
+		nc:   nc,
+		opts: sysOpts,
+	}, nil
 }
 
 type requestManyOpts struct {
@@ -86,14 +146,14 @@ func WithRequestManyCount(count int) RequestManyOpt {
 
 func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt) ([]*nats.Msg, error) {
 	if subject == "" {
-
+		return nil, fmt.Errorf("%w: subject cannot be empty", ErrValidation)
 	}
 
 	conn := s.nc
 	reqOpts := &requestManyOpts{
-		maxWait:     DefaultRequestTimeout,
-		maxInterval: 300 * time.Millisecond,
-		count:       -1,
+		maxWait:     s.opts.timeout,
+		maxInterval: s.opts.multiRequestInterval,
+		count:       s.opts.serverCount,
 	}
 
 	for _, opt := range opts {
@@ -106,9 +166,12 @@ func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt
 	res := make([]*nats.Msg, 0)
 	msgsChan := make(chan *nats.Msg, 100)
 
-	intervalTimer := time.NewTimer(reqOpts.maxInterval)
+	timer := time.NewTimer(reqOpts.maxWait)
+	timer.Stop()
 	sub, err := conn.Subscribe(inbox, func(msg *nats.Msg) {
-		intervalTimer.Reset(reqOpts.maxInterval)
+		if reqOpts.maxInterval > 0 {
+			timer.Reset(reqOpts.maxInterval)
+		}
 		msgsChan <- msg
 	})
 	if err != nil {
@@ -130,9 +193,7 @@ func (s *System) RequestMany(subject string, data []byte, opts ...RequestManyOpt
 			if reqOpts.count != -1 && len(res) == reqOpts.count {
 				return res, nil
 			}
-		case <-intervalTimer.C:
-			return res, nil
-		case <-time.After(reqOpts.maxWait):
+		case <-timer.C:
 			return res, nil
 		}
 	}

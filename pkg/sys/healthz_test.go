@@ -49,7 +49,10 @@ func TestHealthz(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			sys := NewSysClient(sysConn)
+			sys, err := NewSysClient(sysConn)
+			if err != nil {
+				t.Fatalf("Error creating system client: %s", err)
+			}
 
 			healthz, err := sys.Healthz(test.id, HealthzOptions{})
 			if test.withError != nil {
@@ -86,7 +89,10 @@ func TestHealthzPing(t *testing.T) {
 		t.Fatalf("Error establishing connection: %s", err)
 	}
 
-	sys := NewSysClient(sysConn)
+	sys, err := NewSysClient(sysConn)
+	if err != nil {
+		t.Fatalf("Error creating system client: %s", err)
+	}
 
 	resp, err := sys.HealthzPing(HealthzOptions{})
 	if err != nil {
